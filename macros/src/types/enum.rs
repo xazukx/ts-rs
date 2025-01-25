@@ -44,13 +44,37 @@ pub(crate) fn r#enum_def(s: &ItemEnum) -> syn::Result<DerivedTS> {
             variant,
         )?;
     }
+    
+    let (inline, inline_flattened) = if enum_attr.use_ts_enum {
+        let pairs = formatted_variants
+            .iter()
+            .map(|name| quote!(format!("{} = \"{}\"", #name, #name)))
+            .collect::<Vec<_>>();
+        let strings = formatted_variants
+            .iter()
+            .map(|name| quote!(format!("\"{}\"", #name)))
+            .collect::<Vec<_>>();
+        
+        (
+            quote!([#(#pairs),*].join(", ")),
+            Some(quote!(
+                format!("({})", [#(#strings),*].join(" | "))
+            )),
+        )
+    }
+    else {
+        (
+            quote!([#(#formatted_variants),*].join(" | ")),
+            Some(quote!(
+                format!("({})", [#(#formatted_variants),*].join(" | "))
+            )),
+        )
+    };
 
     Ok(DerivedTS {
         crate_rename,
-        inline: quote!([#(#formatted_variants),*].join(" | ")),
-        inline_flattened: Some(quote!(
-            format!("({})", [#(#formatted_variants),*].join(" | "))
-        )),
+        inline,
+        inline_flattened,
         dependencies,
         docs: enum_attr.docs,
         export: enum_attr.export,
@@ -58,6 +82,7 @@ pub(crate) fn r#enum_def(s: &ItemEnum) -> syn::Result<DerivedTS> {
         ts_name: name,
         concrete: enum_attr.concrete,
         bound: enum_attr.bound,
+        is_ts_enum: enum_attr.use_ts_enum,
     })
 }
 
@@ -86,6 +111,14 @@ fn format_variant(
         (None, None) => variant.ident.to_string(),
         (None, Some(rn)) => rn.apply(&variant.ident.to_string()),
     };
+    
+    if enum_attr.use_ts_enum {
+        if !variant.fields.is_empty() {
+            syn_err_spanned!(variant; "`use_ts_enum` requires plain enum fields");
+        }
+        formatted_variants.push(quote!(#name));
+        return Ok(());
+    }
 
     let struct_attr = StructAttr::from_variant(enum_attr, &variant_attr, &variant.fields);
     let variant_type = types::type_def(
@@ -206,5 +239,6 @@ fn empty_enum(name: impl Into<String>, enum_attr: EnumAttr) -> DerivedTS {
         ts_name: name,
         concrete: enum_attr.concrete,
         bound: enum_attr.bound,
+        is_ts_enum: false,
     }
 }
