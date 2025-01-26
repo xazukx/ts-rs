@@ -906,11 +906,11 @@ impl<K: TS, V: TS, H> TS for HashMap<K, V, H> {
     }
 
     fn name() -> String {
-        format!("{{ [key in {}]?: {} }}", K::name(), V::name())
+        format!("Record<{}, {}>", K::name(), V::name())
     }
 
     fn inline() -> String {
-        format!("{{ [key in {}]?: {} }}", K::inline(), V::inline())
+        format!("Record<{}, {}>", K::inline(), V::inline())
     }
 
     fn visit_dependencies(v: &mut impl TypeVisitor)
