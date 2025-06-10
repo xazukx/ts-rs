@@ -180,6 +180,7 @@ const HEADER_ERROR_MESSAGE: &str = "The generated strings must have their NOTE a
 const DECLARATION_START: &str = "export type ";
 
 fn extract_imports<'a>(lines: impl Iterator<Item = &'a str>) -> Vec<(String, Vec<String>)> {
+    const FIND: &str = "import type {";
     let mut result = Vec::new();
     let mut current_types = Vec::new();
     let mut in_multiline = false;
@@ -187,11 +188,12 @@ fn extract_imports<'a>(lines: impl Iterator<Item = &'a str>) -> Vec<(String, Vec
     for line in lines {
         let line = line.trim();
 
-        if let Some(start) = line.find("import type {") {
+        if let Some(mut start) = line.find(FIND) {
             if let Some(end) = line.find('}') {
+                start += FIND.len();
                 // Single-line import like: import type { A, B } from "./x";
                 
-                let types_str = &line[start + 1..end];
+                let types_str = &line[start..end];
                 let types = types_str.split(',').map(|s| s.trim().to_string()).collect::<Vec<_>>();
 
                 if let Some(from_pos) = line.find("from") {
