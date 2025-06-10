@@ -200,6 +200,7 @@ fn merge(original_contents: String, new_contents: String) -> String {
         .skip(1)
         .chain(new_header.lines().skip(1))
         .filter_map(|line| {
+            println!("ts-rs 1: {line}");
             line.split_once(" from ")
         })
         .map(|(import, from)| {
