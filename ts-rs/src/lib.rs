@@ -973,7 +973,7 @@ impl<K: TS, V: TS, H> TS for HashMap<K, V, H> {
 
     fn name() -> String {
         format!(
-            "{{ [key in {}]?: {} }}",
+            "Record<{}, {}>",
             <K as crate::TS>::name(),
             <V as crate::TS>::name()
         )
@@ -981,7 +981,7 @@ impl<K: TS, V: TS, H> TS for HashMap<K, V, H> {
 
     fn inline() -> String {
         format!(
-            "{{ [key in {}]?: {} }}",
+            "Record<{}, {}>",
             <K as crate::TS>::inline(),
             <V as crate::TS>::inline()
         )
