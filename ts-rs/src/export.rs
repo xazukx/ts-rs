@@ -1,12 +1,5 @@
 use std::{
-    any::TypeId,
-    borrow::Cow,
-    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
-    fmt::Write,
-    fs::File,
-    io::{Seek, SeekFrom},
-    path::{Component, Path, PathBuf},
-    sync::{Mutex, OnceLock},
+    any::TypeId, borrow::Cow, collections::{BTreeMap, BTreeSet, HashMap, HashSet}, fmt::Write, fs::File, io::{Seek, SeekFrom}, path::{Component, Path, PathBuf}, sync::{Mutex, OnceLock}
 };
 
 pub use error::ExportError;
@@ -186,6 +179,56 @@ const HEADER_ERROR_MESSAGE: &str = "The generated strings must have their NOTE a
 
 const DECLARATION_START: &str = "export type ";
 
+fn extract_imports<'a>(lines: impl Iterator<Item = &'a str>) -> Vec<(String, Vec<String>)> {
+    let mut result = Vec::new();
+    let mut current_types = Vec::new();
+    let mut in_multiline = false;
+
+    for line in lines {
+        let line = line.trim();
+
+        if let Some(start) = line.find("import type {") {
+            if let Some(end) = line.find('}') {
+                // Single-line import like: import type { A, B } from "./x";
+                
+                let types_str = &line[start + 1..end];
+                let types = types_str.split(',').map(|s| s.trim().to_string()).collect::<Vec<_>>();
+
+                if let Some(from_pos) = line.find("from") {
+                    let path = line[from_pos + 4..]
+                        .trim()
+                        .trim_end_matches(';')
+                        .trim_matches('"');
+                    result.push((path.to_string(), types));
+                }
+            }
+            else {
+                // Start of multi-line import
+                in_multiline = true;
+                current_types.clear();
+            }
+        }
+        else if in_multiline {
+            if line.starts_with('}') {
+                // End of multi-line import
+                if let Some(from_pos) = line.find("from") {
+                    let path = line[from_pos + 4..]
+                        .trim()
+                        .trim_end_matches(';')
+                        .trim_matches('"');
+                    result.push((path.to_string(), current_types.clone()));
+                    current_types.clear();
+                    in_multiline = false;
+                }
+            } else if !line.is_empty() {
+                current_types.push(line.trim_end_matches(',').to_string());
+            }
+        }
+    }
+
+    result
+}
+
 /// Inserts the imports and declaration from the newly generated type
 /// into the contents of the file, removimg duplicate imports and organazing
 /// both imports and declarations alphabetically
@@ -194,7 +237,13 @@ fn merge(original_contents: String, new_contents: String) -> String {
         .split_once("\n\n")
         .expect(HEADER_ERROR_MESSAGE);
     let (new_header, new_decl) = new_contents.split_once("\n\n").expect(HEADER_ERROR_MESSAGE);
-
+    let import_lines = extract_imports(
+        original_header
+        .lines()
+        .skip(1)
+        .chain(new_header.lines().skip(1))
+    );
+/* 
     let import_lines = original_header
         .lines()
         .skip(1)
@@ -213,10 +262,10 @@ fn merge(original_contents: String, new_contents: String) -> String {
 
             (path, types)
         });
-
+ */
     let mut imports_map: BTreeMap<&str, BTreeSet<&str>> = Default::default();
 
-    for (path, types) in import_lines {
+    for (path, types) in &import_lines {
         let entry = imports_map.entry(path).or_default();
 
         for ty in types {
