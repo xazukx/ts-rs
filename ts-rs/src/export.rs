@@ -199,8 +199,10 @@ fn merge(original_contents: String, new_contents: String) -> String {
         .lines()
         .skip(1)
         .chain(new_header.lines().skip(1))
-        .map(|line| {
-            let (import, from) = line.split_once(" from ").unwrap();
+        .filter_map(|line| {
+            line.split_once(" from ")
+        })
+        .map(|(import, from)| {
             let path = from.trim_start_matches('"').trim_end_matches(['"', ';']);
 
             let types = import
