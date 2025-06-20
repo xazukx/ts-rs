@@ -4,7 +4,7 @@ use std::{collections::BTreeSet, rc::Rc};
 
 use chrono::NaiveDateTime;
 use serde::Serialize;
-use ts_rs::TS;
+use ts_rs::{ts_constant, TS};
 use uuid::Uuid;
 
 #[derive(Serialize, TS)]
@@ -105,3 +105,25 @@ struct ComplexStruct {
     #[serde(default)]
     pub string_tree: Option<Rc<BTreeSet<String>>>,
 }
+
+#[ts_constant(export_to = "constants.ts")]
+pub const RAW_CODE: &str = r#"
+function apple() {
+    return `raw_${name}`;
+}
+"#;
+
+#[ts_constant(export_to = "constants.ts")]
+pub const ADMIN_NAME: &str = "admin";
+
+#[ts_constant(export_to = "constants.ts")]
+pub const ADMIN_ID: i32 = 100_000_000;
+
+#[ts_constant(export_to = "constants.ts")]
+pub const PI: f64 = 3.14159;
+
+#[ts_constant(export_to = "constants.ts")]
+pub const CHARS: &[u8] = b"hello";
+
+#[ts_constant(export_to = "constants.ts")]
+pub const IS_ADMIN: bool = true;

@@ -11,6 +11,8 @@ use syn::{
     Error, Expr, Lit, Path, Result, Token, WherePredicate,
 };
 pub use variant::*;
+pub use constant::*;
+mod constant;
 mod r#enum;
 mod field;
 mod r#struct;

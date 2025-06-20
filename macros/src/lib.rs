@@ -6,12 +6,10 @@ use std::collections::{HashMap, HashSet};
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
 use syn::{
-    parse_quote, spanned::Spanned, ConstParam, Expr, GenericParam, Generics, Item, LifetimeParam,
-    Path, Result, Type, TypeArray, TypeParam, TypeParen, TypePath, TypeReference, TypeSlice,
-    TypeTuple, WhereClause, WherePredicate,
+    parse_macro_input, parse_quote, spanned::Spanned, ConstParam, Expr, GenericParam, Generics, Item, LifetimeParam, Path, Result, Type, TypeArray, TypeParam, TypeParen, TypePath, TypeReference, TypeSlice, TypeTuple, WhereClause, WherePredicate
 };
 
-use crate::{deps::Dependencies, utils::format_generics};
+use crate::{attr::{ConstantAttr, Inflection}, deps::Dependencies, types::constant, utils::format_generics};
 
 #[macro_use]
 mod utils;
@@ -30,6 +28,7 @@ struct DerivedTS {
     concrete: HashMap<Ident, Type>,
     bound: Option<Vec<WherePredicate>>,
     is_ts_enum: bool,
+    is_constant: bool,
     export: bool,
     export_to: Option<Expr>,
 }
@@ -259,6 +258,12 @@ impl DerivedTS {
                     <Self as #crate_rename::TS>::inline_flattened()
                 }
             }
+        } else if self.is_constant {
+            quote! {
+                fn inline() -> String {
+                    (#inline).to_string()
+                }
+            }
         } else {
             quote! {
                 fn inline() -> String {
@@ -309,6 +314,18 @@ impl DerivedTS {
             return quote! {
                 fn decl_concrete() -> String {
                     format!("enum {} {{ {} }}", #name, #inline)
+                }
+                fn decl() -> String {
+                    <#rust_ty<#(#generic_idents,)*> as #crate_rename::TS>::decl_concrete()
+                }
+            };
+        }
+        
+        if self.is_constant {
+            let inline = &self.inline;
+            return quote! {
+                fn decl_concrete() -> String {
+                    format!("const {} = {};", #name, #inline)
                 }
                 fn decl() -> String {
                     <#rust_ty<#(#generic_idents,)*> as #crate_rename::TS>::decl_concrete()
@@ -480,4 +497,37 @@ fn entry(input: proc_macro::TokenStream) -> Result<TokenStream> {
     };
 
     Ok(ts.into_impl(ident, generics))
+}
+
+#[proc_macro_attribute]
+pub fn ts_constant(attrs: proc_macro::TokenStream, item: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let attrs = parse_macro_input!(attrs as ConstantAttr);
+    let item = parse_macro_input!(item as Item);
+    match run_constant(item, attrs) {
+        Ok(result) => result,
+        Err(err) => err.to_compile_error(),
+    }
+    .into()
+}
+
+fn run_constant(input: Item, attrs: ConstantAttr) -> Result<TokenStream> {
+    let (ts, ident, generics) = match &input {
+        Item::Const(c) => {
+            let ident_str = Inflection::Lower.apply(&c.ident.to_string());
+            let ident_str = format!("TsConstant{}", Inflection::Pascal.apply(&ident_str));
+            let type_name = Ident::new(&ident_str, c.ident.span());
+            (constant::constant_def(&c, attrs)?, type_name, c.generics.clone())
+        },
+        _ => syn_err!(input.span(); "expected constant"),
+    };
+    let out_struct = quote! {
+        struct #ident;
+    };
+    let out_impl = ts.into_impl(ident, generics);
+    // Emit original const + hidden TS output
+    Ok(quote! {
+        #input
+        #out_struct
+        #out_impl
+    })
 }

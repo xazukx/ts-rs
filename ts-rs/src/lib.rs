@@ -142,6 +142,7 @@ use std::{
 };
 
 pub use ts_rs_macros::TS;
+pub use ts_rs_macros::ts_constant;
 
 pub use crate::export::ExportError;
 

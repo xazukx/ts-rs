@@ -12,6 +12,7 @@ mod tuple;
 mod type_as;
 mod type_override;
 mod unit;
+pub(crate) mod constant;
 
 pub(crate) use r#enum::r#enum_def;
 
