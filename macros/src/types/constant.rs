@@ -4,7 +4,10 @@ use syn::{ext::IdentExt, spanned::Spanned, Error, Expr, ItemConst, Lit, Result};
 use crate::{attr::{Attr, ConstantAttr, ContainerAttr}, utils::make_string_literal, Dependencies, DerivedTS};
 
 pub(crate) fn constant_def(s: &ItemConst, attr: ConstantAttr) -> Result<DerivedTS> {
-    let ts_name = make_string_literal(&s.ident.unraw().to_string(), s.ident.span());
+    let ts_name = match &attr.rename {
+        Some(rename) => rename.clone(),
+        _ => make_string_literal(&s.ident.unraw().to_string(), s.ident.span()),
+    };
     type_def(&attr, ts_name, &s.expr)
 }
 
@@ -12,23 +15,7 @@ fn type_def(attr: &ConstantAttr, ts_name: Expr, value: &Expr) -> Result<DerivedT
     attr.assert_validity(&())?;
     let crate_rename = attr.crate_rename();
     
-    let text: String = match value {
-        Expr::Lit(lit) => match &lit.lit {
-            Lit::Float(float) => float.base10_digits().to_string(),
-            Lit::Int(int) => int.base10_digits().to_string(),
-            Lit::Str(str) => to_typescript_syntax(str.value()),
-            Lit::ByteStr(str) => {
-                let token = str.token().to_string();
-                let quote_index = token.find('"').unwrap();
-                let last_quote_index = token.rfind('"').unwrap();
-                let text = token[quote_index + 1..last_quote_index].to_string();
-                to_typescript_syntax(text)
-            },
-            Lit::Bool(bool) => bool.value.to_string(),
-            _ => return Err(Error::new(value.span(), "expected literal")),
-        },
-        _ => return Err(Error::new(value.span(), "expected literal")),
-    };
+    let text = extract_expr_literal(value)?;
     
     Ok(DerivedTS {
         crate_rename: crate_rename.clone(),
@@ -44,6 +31,36 @@ fn type_def(attr: &ConstantAttr, ts_name: Expr, value: &Expr) -> Result<DerivedT
         is_ts_enum: false,
         is_constant: true,
     })
+}
+
+fn extract_expr_literal(value: &Expr) -> Result<String> {
+    let text: String = match value {
+        Expr::Lit(lit) => match &lit.lit {
+            Lit::Float(float) => float.base10_digits().to_string(),
+            Lit::Int(int) => int.base10_digits().to_string(),
+            Lit::Str(str) => to_typescript_syntax(str.value()),
+            Lit::ByteStr(str) => {
+                let token = str.token().to_string();
+                let quote_index = token.find('"').unwrap();
+                let last_quote_index = token.rfind('"').unwrap();
+                let text = token[quote_index + 1..last_quote_index].to_string();
+                to_typescript_syntax(text)
+            },
+            Lit::Bool(bool) => bool.value.to_string(),
+            _ => return Err(Error::new(value.span(), "expected literal")),
+        },
+        Expr::Call(call) => {
+            for arg in &call.args {
+                match extract_expr_literal(arg) {
+                    Ok(text) => return Ok(text),
+                    _ => {},
+                }
+            }
+            return Err(Error::new(value.span(), format!("could not extract a literal from {:?}", value)));
+        }
+        _ => return Err(Error::new(value.span(), format!("expected expression literal not {:?}", value))),
+    };
+    Ok(text)
 }
 
 fn to_typescript_syntax(value: String) -> String {

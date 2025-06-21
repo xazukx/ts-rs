@@ -122,8 +122,17 @@ pub const ADMIN_ID: i32 = 100_000_000;
 #[ts_constant(export_to = "constants.ts")]
 pub const PI: f64 = 3.14159;
 
-#[ts_constant(export_to = "constants.ts")]
+#[ts_constant(export_to = "constants.ts", rename = "ALPHABET")]
 pub const CHARS: &[u8] = b"hello";
 
 #[ts_constant(export_to = "constants.ts")]
 pub const IS_ADMIN: bool = true;
+
+
+pub struct ItemId(tiny_text::TinyText);
+mod tiny_text {
+    pub struct TinyText(pub &'static str);
+}
+
+#[ts_constant(export_to = "constants.ts")]
+pub const ITEM_ID: ItemId = ItemId(tiny_text::TinyText("item_id"));
