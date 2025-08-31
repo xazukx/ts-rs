@@ -15,7 +15,7 @@ fn type_def(attr: &ConstantAttr, ts_name: Expr, value: &Expr) -> Result<DerivedT
     attr.assert_validity(&())?;
     let crate_rename = attr.crate_rename();
     
-    let text = extract_expr_literal(value)?;
+    let text = extract_expr_literal(value, attr)?;
     
     Ok(DerivedTS {
         crate_rename: crate_rename.clone(),
@@ -33,13 +33,17 @@ fn type_def(attr: &ConstantAttr, ts_name: Expr, value: &Expr) -> Result<DerivedT
     })
 }
 
-fn extract_expr_literal(value: &Expr) -> Result<String> {
+fn extract_expr_literal(value: &Expr, attr: &ConstantAttr) -> Result<String> {
     let text: String = match value {
         Expr::Lit(lit) => match &lit.lit {
             Lit::Float(float) => float.base10_digits().to_string(),
             Lit::Int(int) => int.base10_digits().to_string(),
             Lit::Str(str) => to_typescript_syntax(str.value()),
             Lit::ByteStr(str) => {
+                if attr.array {
+                    let arr = str.value();
+                    return Ok(format!("{:?}", arr));
+                }
                 let token = str.token().to_string();
                 let quote_index = token.find('"').unwrap();
                 let last_quote_index = token.rfind('"').unwrap();
@@ -51,7 +55,7 @@ fn extract_expr_literal(value: &Expr) -> Result<String> {
         },
         Expr::Call(call) => {
             for arg in &call.args {
-                match extract_expr_literal(arg) {
+                match extract_expr_literal(arg, attr) {
                     Ok(text) => return Ok(text),
                     _ => {},
                 }

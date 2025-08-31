@@ -8,6 +8,7 @@ pub struct ConstantAttr {
     pub export_to: Option<Expr>,
     pub docs: Vec<Expr>,
     pub rename: Option<Expr>,
+    pub array: bool,
 }
 
 impl Attr for ConstantAttr {
@@ -19,6 +20,7 @@ impl Attr for ConstantAttr {
             export_to: self.export_to.or(other.export_to),
             docs: other.docs,
             rename: self.rename.or(other.rename),
+            array: self.array || other.array,
         }
     }
 
@@ -40,5 +42,6 @@ impl_parse! {
         "crate" => out.crate_rename = Some(parse_assign_from_str(input)?),
         "export_to" => out.export_to = Some(parse_assign_expr(input)?),
         "rename" => out.rename = Some(parse_assign_expr(input)?),
+        "array" => out.array = true,
     }
 }

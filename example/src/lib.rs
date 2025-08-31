@@ -130,9 +130,18 @@ pub const IS_ADMIN: bool = true;
 
 
 pub struct ItemId(tiny_text::TinyText);
+pub struct ItemBytes(tiny_text::TinyBytes);
+
 mod tiny_text {
     pub struct TinyText(pub &'static str);
+    pub struct TinyBytes(pub &'static [u8]);
 }
 
 #[ts_constant(export_to = "constants.ts")]
 pub const ITEM_ID: ItemId = ItemId(tiny_text::TinyText("item_id"));
+
+#[ts_constant(export_to = "constants.ts", array)]
+pub const ITEM_BYTES: ItemBytes = ItemBytes(tiny_text::TinyBytes(b"item_bytes"));
+
+#[ts_constant(export_to = "constants.ts", array)]
+pub const ITEM_SCOPE: tiny_text::TinyBytes = tiny_text::TinyBytes(b"item_bytes");
