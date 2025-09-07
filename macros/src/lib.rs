@@ -518,6 +518,12 @@ fn run_constant(input: Item, attrs: ConstantAttr) -> Result<TokenStream> {
             let type_name = Ident::new(&ident_str, c.ident.span());
             (constant::constant_def(&c, attrs)?, type_name, c.generics.clone())
         },
+        Item::Struct(s) => {
+            let ident_str = Inflection::Lower.apply(&s.ident.to_string());
+            let ident_str = format!("TsConstant{}", Inflection::Pascal.apply(&ident_str));
+            let type_name = Ident::new(&ident_str, s.ident.span());
+            (constant::constant_def_struct(&s, attrs)?, type_name, s.generics.clone())
+        },
         _ => syn_err!(input.span(); "expected constant"),
     };
     let out_struct = quote! {

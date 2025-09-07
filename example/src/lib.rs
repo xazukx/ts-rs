@@ -28,6 +28,7 @@ enum Gender {
 
 #[derive(Serialize, TS)]
 #[ts(export)]
+#[ts_constant(default, export_to = "constants.ts")]
 struct User {
     user_id: i32,
     first_name: String,
@@ -39,6 +40,22 @@ struct User {
     token: Uuid,
     #[ts(type = "string")]
     created_at: NaiveDateTime,
+}
+
+#[allow(deprecated)]
+impl Default for User {
+    fn default() -> Self {
+        Self {
+            user_id: 101,
+            first_name: "John".to_string(),
+            last_name: "Doe".to_string(),
+            role: Role::User,
+            family: Vec::new(),
+            gender: Gender::Male,
+            token: Uuid::default(),
+            created_at: NaiveDateTime::from_timestamp(0, 0),
+        }
+    }
 }
 
 #[derive(Serialize, TS)]
@@ -98,9 +115,10 @@ enum InlineComplexEnum {
     U(Box<User>),
 }
 
-#[derive(Serialize, TS)]
+#[derive(Serialize, TS, Default)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
+#[ts_constant(default, export_to = "constants.ts")]
 struct ComplexStruct {
     #[serde(default)]
     pub string_tree: Option<Rc<BTreeSet<String>>>,

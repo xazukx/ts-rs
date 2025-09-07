@@ -1,5 +1,5 @@
 use quote::quote;
-use syn::{ext::IdentExt, spanned::Spanned, Error, Expr, ItemConst, Lit, Result};
+use syn::{ext::IdentExt, spanned::Spanned, Error, Expr, Ident, ItemConst, ItemStruct, Lit, Result};
 
 use crate::{attr::{Attr, ConstantAttr, ContainerAttr}, utils::make_string_literal, Dependencies, DerivedTS};
 
@@ -9,6 +9,53 @@ pub(crate) fn constant_def(s: &ItemConst, attr: ConstantAttr) -> Result<DerivedT
         _ => make_string_literal(&s.ident.unraw().to_string(), s.ident.span()),
     };
     type_def(&attr, ts_name, &s.expr)
+}
+
+pub(crate) fn constant_def_struct(strct: &ItemStruct, attr: ConstantAttr) -> Result<DerivedTS> {
+    let ident_name = match &attr.rename {
+        Some(rename) => {
+            if let Expr::Lit(lit_str) = rename {
+                if let Lit::Str(lit_str) = &lit_str.lit {
+                    Ident::new(&lit_str.value(), lit_str.span())
+                } else {
+                    return Err(Error::new(rename.span(), "expected string literal"));
+                }
+            } else {
+                return Err(Error::new(rename.span(), "expected string literal"));
+            }
+        },
+        _ => strct.ident.unraw(),
+    };
+    let ts_name = match &attr.rename {
+        Some(rename) => rename.clone(),
+        _ => {
+            let mut name = strct.ident.unraw().to_string();
+            name.insert_str(0, "Default");
+            make_string_literal(&name, strct.ident.span())
+        },
+    };
+    attr.assert_validity(&())?;
+    let crate_rename = attr.crate_rename();
+    
+    let inline = quote! {
+        serde_json::to_string_pretty(&#ident_name::default())
+            .expect(&format!("Failed to serialize {} constant for ts_constant(default)", stringify!(#ident_name)))
+    };
+    
+    Ok(DerivedTS {
+        crate_rename: crate_rename.clone(),
+        inline: quote!(#inline),
+        inline_flattened: None,
+        docs: attr.docs.clone(),
+        dependencies: Dependencies::new(crate_rename),
+        export: attr.export_to.is_some(),
+        export_to: attr.export_to.clone(),
+        ts_name,
+        concrete: Default::default(),
+        bound: None,
+        is_ts_enum: false,
+        is_constant: true,
+    })
 }
 
 fn type_def(attr: &ConstantAttr, ts_name: Expr, value: &Expr) -> Result<DerivedTS> {

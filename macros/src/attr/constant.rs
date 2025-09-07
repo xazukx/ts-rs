@@ -9,6 +9,7 @@ pub struct ConstantAttr {
     pub docs: Vec<Expr>,
     pub rename: Option<Expr>,
     pub array: bool,
+    pub default: bool,
 }
 
 impl Attr for ConstantAttr {
@@ -21,6 +22,7 @@ impl Attr for ConstantAttr {
             docs: other.docs,
             rename: self.rename.or(other.rename),
             array: self.array || other.array,
+            default: self.default || other.default,
         }
     }
 
@@ -43,5 +45,6 @@ impl_parse! {
         "export_to" => out.export_to = Some(parse_assign_expr(input)?),
         "rename" => out.rename = Some(parse_assign_expr(input)?),
         "array" => out.array = true,
+        "default" => out.default = true,
     }
 }

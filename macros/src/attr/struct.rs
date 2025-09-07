@@ -23,6 +23,7 @@ pub struct StructAttr {
     pub export: bool,
     pub tag: Option<String>,
     pub docs: Vec<Expr>,
+    pub default: bool,
     pub concrete: HashMap<Ident, Type>,
     pub bound: Option<Vec<WherePredicate>>,
     pub optional_fields: Optional,
@@ -85,6 +86,7 @@ impl Attr for StructAttr {
             export: self.export || other.export,
             tag: self.tag.or(other.tag),
             docs: other.docs,
+            default: self.default || other.default,
             concrete: self.concrete.into_iter().chain(other.concrete).collect(),
             bound: match (self.bound, other.bound) {
                 (Some(a), Some(b)) => Some(a.into_iter().chain(b).collect()),
