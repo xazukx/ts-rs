@@ -38,8 +38,11 @@ pub(crate) fn constant_def_struct(strct: &ItemStruct, attr: ConstantAttr) -> Res
     let crate_rename = attr.crate_rename();
     
     let inline = quote! {
-        serde_json::to_string_pretty(&#ident_name::default())
-            .expect(&format!("Failed to serialize {} constant for ts_constant(default)", stringify!(#ident_name)))
+        format!(
+            "{} as const",
+            serde_json::to_string_pretty(&#ident_name::default())
+                .expect(&format!("Failed to serialize {} constant for ts_constant(default)", stringify!(#ident_name)))
+        )
     };
     
     Ok(DerivedTS {
