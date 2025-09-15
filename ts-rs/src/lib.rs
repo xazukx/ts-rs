@@ -169,12 +169,18 @@ mod tokio;
 /// dependencies will be written to `TS_RS_EXPORT_DIR`, or `./bindings` by default.
 ///
 /// If you have multiple crates exporting to the same directory (for example in a Cargo workspace),
-/// you can set the environment variable `PREFIX_CRATE_NAME_AS_FOLDER` to a truthy value (`1`,
+/// you can set the environment variable `TS_RS_CRATE_NAME_AS_FOLDER` to a truthy value (`1`,
 /// `true`, `yes`, or `on`). When enabled, the current crate name (from `CARGO_PKG_NAME`) will be
 /// inserted as a folder inside the export directory before the generated file path. This avoids
 /// cross-crate overwrites by writing to `TS_RS_EXPORT_DIR/<crate-name>/<path>`.  
-/// Example: with `PREFIX_CRATE_NAME_AS_FOLDER=1` and `#[ts(export)] struct User;`, the output will
+/// Example: with `TS_RS_CRATE_NAME_AS_FOLDER=1` and `#[ts(export)] struct User;`, the output will
 /// be `./bindings/<crate-name>/User.ts` by default.
+///
+/// You can optionally generate an `index.ts` file in each output directory that re-exports every
+/// generated file there with `export * from "./<file>";` lines by setting
+/// `TS_RS_GENERATE_INDEX` to a truthy value (`1`, `true`, `yes`, or `on`). When the
+/// `import-esm` feature is enabled, the re-export paths will use the `.js` extension to comply with
+/// ESM semantics. The index file is updated incrementally and avoids duplicate entries across runs.
 ///
 /// For each individual type, path and filename within the output directory can be changed using
 /// `#[ts(export_to = "...")]`. By default, the filename will be derived from the name of the type.
@@ -213,7 +219,7 @@ mod tokio;
 ///   ```
 ///   <br/>
 ///   To avoid overwriting files when exporting from multiple crates into the same directory, you
-///   may also set `PREFIX_CRATE_NAME_AS_FOLDER` to a truthy value (`1`, `true`, `yes`, or `on`).
+///   may also set `TS_RS_CRATE_NAME_AS_FOLDER` to a truthy value (`1`, `true`, `yes`, or `on`).
 ///   When enabled, the generated file paths are prefixed with the current crate name (from
 ///   `CARGO_PKG_NAME`).
 ///

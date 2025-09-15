@@ -62,7 +62,7 @@ impl DerivedTS {
 
                     // Optionally prefix with the current crate name to avoid cross-crate overwrites
                     // when multiple crates export to the same output directory during tests.
-                    let prefix_crate = std::env::var("PREFIX_CRATE_NAME_AS_FOLDER")
+                    let prefix_crate = std::env::var("TS_RS_CRATE_NAME_AS_FOLDER")
                         .map(|v| {
                             let v = v.to_ascii_lowercase();
                             matches!(v.as_str(), "1" | "true" | "yes" | "on")
