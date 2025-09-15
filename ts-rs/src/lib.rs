@@ -168,6 +168,14 @@ mod tokio;
 /// When `cargo test` is run, all types annotated with `#[ts(export)]` and all of their
 /// dependencies will be written to `TS_RS_EXPORT_DIR`, or `./bindings` by default.
 ///
+/// If you have multiple crates exporting to the same directory (for example in a Cargo workspace),
+/// you can set the environment variable `PREFIX_CRATE_NAME_AS_FOLDER` to a truthy value (`1`,
+/// `true`, `yes`, or `on`). When enabled, the current crate name (from `CARGO_PKG_NAME`) will be
+/// inserted as a folder inside the export directory before the generated file path. This avoids
+/// cross-crate overwrites by writing to `TS_RS_EXPORT_DIR/<crate-name>/<path>`.  
+/// Example: with `PREFIX_CRATE_NAME_AS_FOLDER=1` and `#[ts(export)] struct User;`, the output will
+/// be `./bindings/<crate-name>/User.ts` by default.
+///
 /// For each individual type, path and filename within the output directory can be changed using
 /// `#[ts(export_to = "...")]`. By default, the filename will be derived from the name of the type.
 ///
@@ -204,6 +212,10 @@ mod tokio;
 ///   TS_RS_EXPORT_DIR = { value = "<OVERRIDE_DIR>", relative = true }
 ///   ```
 ///   <br/>
+///   To avoid overwriting files when exporting from multiple crates into the same directory, you
+///   may also set `PREFIX_CRATE_NAME_AS_FOLDER` to a truthy value (`1`, `true`, `yes`, or `on`).
+///   When enabled, the generated file paths are prefixed with the current crate name (from
+///   `CARGO_PKG_NAME`).
 ///
 /// - **`#[ts(export_to = "..")]`**  
 ///   Specifies where the type should be exported to. Defaults to `<name>.ts`.  

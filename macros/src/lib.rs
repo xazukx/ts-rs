@@ -58,7 +58,23 @@ impl DerivedTS {
 
             quote! {
                 fn output_path() -> Option<std::path::PathBuf> {
-                    Some(std::path::PathBuf::from(#path_string))
+                    let mut path = std::path::PathBuf::from(#path_string);
+
+                    // Optionally prefix with the current crate name to avoid cross-crate overwrites
+                    // when multiple crates export to the same output directory during tests.
+                    let prefix_crate = std::env::var("PREFIX_CRATE_NAME_AS_FOLDER")
+                        .map(|v| {
+                            let v = v.to_ascii_lowercase();
+                            matches!(v.as_str(), "1" | "true" | "yes" | "on")
+                        })
+                        .unwrap_or(false);
+
+                    if prefix_crate && !path.is_absolute() {
+                        let crate_name: &str = env!("CARGO_PKG_NAME");
+                        path = std::path::PathBuf::from(crate_name).join(path);
+                    }
+
+                    Some(path)
                 }
             }
         };

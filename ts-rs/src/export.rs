@@ -245,26 +245,7 @@ fn merge(original_contents: String, new_contents: String) -> String {
         .skip(1)
         .chain(new_header.lines().skip(1))
     );
-/* 
-    let import_lines = original_header
-        .lines()
-        .skip(1)
-        .chain(new_header.lines().skip(1))
-        .filter_map(|line| {
-            println!("ts-rs 1: {line}");
-            line.split_once(" from ")
-        })
-        .map(|(import, from)| {
-            let path = from.trim_start_matches('"').trim_end_matches(['"', ';']);
 
-            let types = import
-                .trim_start_matches("import type { ")
-                .trim_end_matches(" }")
-                .split(", ");
-
-            (path, types)
-        });
- */
     let mut imports_map: BTreeMap<&str, BTreeSet<&str>> = Default::default();
 
     for (path, types) in &import_lines {
