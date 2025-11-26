@@ -293,7 +293,8 @@ fn extract_imports<'a>(lines: impl Iterator<Item = &'a str>) -> Vec<(String, Vec
                     let path = line[from_pos + 4..]
                         .trim()
                         .trim_end_matches(';')
-                        .trim_matches('"');
+                        .trim_matches('"')
+                        .trim_matches('\'');
                     result.push((path.to_string(), types));
                 }
             }
@@ -310,7 +311,8 @@ fn extract_imports<'a>(lines: impl Iterator<Item = &'a str>) -> Vec<(String, Vec
                     let path = line[from_pos + 4..]
                         .trim()
                         .trim_end_matches(';')
-                        .trim_matches('"');
+                        .trim_matches('"')
+                        .trim_matches('\'');
                     result.push((path.to_string(), current_types.clone()));
                     current_types.clear();
                     in_multiline = false;
