@@ -39,29 +39,7 @@ fn maybe_update_index(path: &Path) -> Result<(), ExportError> {
     let lock = &mut get_index_paths().lock().unwrap();
 
     // Initialize set with existing entries if we see this index file for the first time in this process
-    let set = lock.entry(index_path.clone()).or_insert_with(|| {
-        let mut existing = HashSet::new();
-        if let Ok(mut f) = std::fs::OpenOptions::new().read(true).open(&index_path) {
-            use std::io::Read;
-            let mut s = String::new();
-            if f.read_to_string(&mut s).is_ok() {
-                for line in s.lines() {
-                    let line = line.trim();
-                    if let Some(start) = line.find("export * from ") {
-                        let rest = &line[start + "export * from ".len()..];
-                        if let Some(first_quote) = rest.find('"') {
-                            let rest = &rest[first_quote + 1..];
-                            if let Some(end_quote) = rest.find('"') {
-                                let path_part = &rest[..end_quote];
-                                existing.insert(path_part.to_string());
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        existing
-    });
+    let set = lock.entry(index_path.clone()).or_insert_with(|| read_existing_exports(&index_path));
 
     if set.contains(&module_path) {
         return Ok(());
@@ -92,6 +70,33 @@ fn maybe_update_index(path: &Path) -> Result<(), ExportError> {
     Ok(())
 }
 
+fn read_existing_exports(index_path: &Path) -> HashSet<String> {
+    let mut existing = HashSet::new();
+    if let Ok(mut f) = std::fs::OpenOptions::new().read(true).open(index_path) {
+        use std::io::Read;
+        let mut s = String::new();
+        if f.read_to_string(&mut s).is_ok() {
+            for line in s.lines() {
+                if let Some(path) = extract_export_path(line) {
+                    existing.insert(path);
+                }
+            }
+        }
+    }
+    existing
+}
+
+fn extract_export_path(line: &str) -> Option<String> {
+    let line = line.trim();
+    let start = line.find("export * from ")?;
+    let rest = &line[start + "export * from ".len()..];
+    let first_quote_index = rest.find(|c| c == '\'' || c == '"')?;
+    let quote_char = rest.chars().nth(first_quote_index)?;
+    let rest_after_quote = &rest[first_quote_index + 1..];
+    let end_quote_index = rest_after_quote.find(quote_char)?;
+    let path_part = &rest_after_quote[..end_quote_index];
+    Some(path_part.to_string())
+}
 
 static EXPORT_PATHS: OnceLock<Mutex<HashMap<PathBuf, HashSet<String>>>> = OnceLock::new();
 static INDEX_PATHS: OnceLock<Mutex<HashMap<PathBuf, HashSet<String>>>> = OnceLock::new();
