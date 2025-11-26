@@ -30,55 +30,31 @@ fn maybe_update_index(path: &Path) -> Result<(), ExportError> {
     let Some(stem) = path.file_stem().and_then(std::ffi::OsStr::to_str) else { return Ok(()); };
     let index_path = parent.join("index.ts");
 
-    // Compute the module path to re-export from this index file
-    let mut module_path = format!("./{}", stem);
-    if cfg!(feature = "import-esm") {
-        module_path.push_str(".js");
-    }
+    let module_key = normalize_index_module_key(&format!("./{}", stem));
 
     let lock = &mut get_index_paths().lock().unwrap();
 
     // Initialize set with existing entries if we see this index file for the first time in this process
-    let set = lock.entry(index_path.clone()).or_insert_with(|| read_existing_exports(&index_path));
+    let set = lock
+        .entry(index_path.clone())
+        .or_insert_with(|| read_existing_exports(&index_path));
 
-    if set.contains(&module_path) {
+    if !set.insert(module_key) {
         return Ok(());
     }
 
-    // Ensure the index file exists and has a header when created
-    if !index_path.exists() {
-        use std::io::Write as _;
-        let mut f = File::create(&index_path)?;
-        f.write_all(NOTE.as_bytes())?;
-        f.write_all(b"\n")?;
-        f.sync_all()?;
-    }
-
-    // Append the new export line
-    {
-        use std::io::Write as _;
-        let mut f = std::fs::OpenOptions::new()
-            .write(true)
-            .append(true)
-            .open(&index_path)?;
-        writeln!(f, "export * from \"{}\";", module_path)?;
-        f.sync_all()?;
-    }
-
-    set.insert(module_path);
-
-    Ok(())
+    write_sorted_index_file(&index_path, set)
 }
 
-fn read_existing_exports(index_path: &Path) -> HashSet<String> {
-    let mut existing = HashSet::new();
+fn read_existing_exports(index_path: &Path) -> BTreeSet<String> {
+    let mut existing = BTreeSet::new();
     if let Ok(mut f) = std::fs::OpenOptions::new().read(true).open(index_path) {
         use std::io::Read;
         let mut s = String::new();
         if f.read_to_string(&mut s).is_ok() {
             for line in s.lines() {
                 if let Some(path) = extract_export_path(line) {
-                    existing.insert(path);
+                    existing.insert(normalize_index_module_key(&path));
                 }
             }
         }
@@ -98,14 +74,56 @@ fn extract_export_path(line: &str) -> Option<String> {
     Some(path_part.to_string())
 }
 
+fn normalize_index_module_key(path: &str) -> String {
+    let mut normalized = path.trim().trim_matches('"').trim_matches('\'').replace('\\', "/");
+    if let Some(stripped) = normalized.strip_suffix(".ts") {
+        normalized = stripped.to_string();
+    } else if let Some(stripped) = normalized.strip_suffix(".js") {
+        normalized = stripped.to_string();
+    }
+    if normalized.starts_with("./") || normalized.starts_with("../") || normalized.starts_with('/') {
+        normalized
+    } else {
+        format!("./{}", normalized)
+    }
+}
+
+fn write_sorted_index_file(
+    index_path: &Path,
+    modules: &BTreeSet<String>,
+) -> Result<(), ExportError> {
+    use std::io::Write as _;
+
+    let mut contents = String::new();
+    contents.push_str(NOTE);
+    contents.push('\n');
+
+    for key in modules {
+        let module_path = if cfg!(feature = "import-esm") {
+            format!("{}.js", key)
+        } else {
+            key.clone()
+        };
+
+        writeln!(&mut contents, "export * from \"{}\";", module_path)
+            .expect("writing to a string should not fail");
+    }
+
+    let mut file = File::create(index_path)?;
+    file.write_all(contents.as_bytes())?;
+    file.sync_all()?;
+
+    Ok(())
+}
+
 static EXPORT_PATHS: OnceLock<Mutex<HashMap<PathBuf, HashSet<String>>>> = OnceLock::new();
-static INDEX_PATHS: OnceLock<Mutex<HashMap<PathBuf, HashSet<String>>>> = OnceLock::new();
+static INDEX_PATHS: OnceLock<Mutex<HashMap<PathBuf, BTreeSet<String>>>> = OnceLock::new();
 
 fn get_export_paths<'a>() -> &'a Mutex<HashMap<PathBuf, HashSet<String>>> {
     EXPORT_PATHS.get_or_init(Default::default)
 }
 
-fn get_index_paths<'a>() -> &'a Mutex<HashMap<PathBuf, HashSet<String>>> {
+fn get_index_paths<'a>() -> &'a Mutex<HashMap<PathBuf, BTreeSet<String>>> {
     INDEX_PATHS.get_or_init(Default::default)
 }
 
